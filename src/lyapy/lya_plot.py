@@ -15,7 +15,7 @@ def walkers(sampler_chain, variables, param_order, burnin, subset=False):
     
     ndim = sampler_chain[0, 0, :].size
     
-    fig, axes = plt.subplots(ndim, 1, sharex=True, figsize=(8, ndim))
+    fig, axes = plt.subplots(ndim, 1, sharex=True, figsize=(12, ndim*2))
 
     ## this is for long chains, to plot only 1000 evenly sampled points
     if subset:
@@ -26,7 +26,7 @@ def walkers(sampler_chain, variables, param_order, burnin, subset=False):
     i = 0
     for p in param_order:
         if variables[p]['vary']:
-            axes[i].plot(sampler_chain[:, toplot, i].T, color="k", alpha=0.4)
+            axes[i].plot(sampler_chain[:, toplot, i].T, color="k", alpha=0.3)
             axes[i].yaxis.set_major_locator(MaxNLocator(5))
             axes[i].set_ylabel(variables[p]['texname'])
             ymin = variables[p]['value']-variables[p]['scale']

@@ -358,7 +358,7 @@ def profile_plot(x, y, yerr, resolution, samples, model_function, variables, var
 
 
 
-def setup_sampler(x, y, yerr, resolution, nwalkers, variables, variables_order, my_model, mask_data, start_uniform=True, xerr=None,debug=False):
+def setup_sampler(x, y, yerr, resolution, nwalkers, variables, variables_order, my_model, mask_data, start_uniform=True, xerr=None,debug=False,verbose=False):
 
     varyparams = [] # list of parameters that are being varied this run
     theta, scale, mins, maxs = [], [], [], [] # to be filled with parameter values
@@ -374,10 +374,11 @@ def setup_sampler(x, y, yerr, resolution, nwalkers, variables, variables_order, 
             number_free_parameters += 1
         else: # if parameter fixed, just record the starting value as the best value
             variables[p]['best'][0] = variables[p]['value']  
-            
-    print("Varying: ", varyparams)
-    for p in variables.keys():
-        print(p, variables[p]['value'])
+    
+    if verbose == True:         
+        print("Varying: ", varyparams)
+        for p in variables.keys():
+            print(p, variables[p]['value'])
     ndim = len(varyparams)
 
     if start_uniform: 
@@ -391,23 +392,26 @@ def setup_sampler(x, y, yerr, resolution, nwalkers, variables, variables_order, 
     return sampler, pos0
 
 
-def perform_mcmc(sampler, pos0, nsteps, nruns=1,fresh_start=True):
+def perform_mcmc(sampler, pos0, nsteps, nruns=1,fresh_start=True, verbose = False):
 
     for i in range(nruns):
 
-        print("Run #" + str(i + 1))
+        if verbose == True:
+            print("Run #" + str(i + 1))
 
         start_time = time.time()
 
         if fresh_start & (i==0):
 
-            print("Fresh start")
+            if verbose == True:
+                print("Fresh start")
 
             pos, lnprob_vals, rstate = sampler.run_mcmc(pos0, nsteps, rstate0=np.random.get_state())
 
         else:
 
-            print("picking up where the MCMC left off")
+            if verbose == True:
+                print("picking up where the MCMC left off")
 
             with open("state.pkl", "rb") as f:
 
@@ -416,6 +420,7 @@ def perform_mcmc(sampler, pos0, nsteps, nruns=1,fresh_start=True):
             pos, lnprob_vals, rstate = sampler.run_mcmc(pos0, nsteps, rstate0=rstate)
 
         end_time = time.time()
+
 
         print("Done.")
         print("Time to complete MCMC #"+ str(i+1) + ": {0:.1f} seconds"
@@ -438,11 +443,12 @@ def save_sampler_state(pos, lnprob, rstate):
 
     return
 
-def save_sampler_chain(sampler, fresh_start, i):
+def save_sampler_chain(sampler, fresh_start, i, verbose = False):
 
     if fresh_start & (i==0):
 
-        print("Saving option 1")
+        if verbose == True:
+            print("Saving option 1")
 
         with open("chain.pkl", "wb") as f:
 
@@ -450,7 +456,8 @@ def save_sampler_chain(sampler, fresh_start, i):
 
     else:
 
-        print("Saving option 2")
+        if verbose == True:
+            print("Saving option 2")
 
         with open("chain.pkl", "rb") as f:
 
@@ -503,7 +510,7 @@ def make_convergence_plot(sampler_chain, ndim, burnin):
             new[i] = lyapy.autocorr_new(y[:, :n])
 
 
-        axes[k].loglog(N, gw2010, "o-", label="G\&W 2010")
+        axes[k].loglog(N, gw2010, "o-", label="G&W 2010")
         axes[k].loglog(N, new, "o-", label="new")
         #ylim = plt.gca().get_ylim()
         axes[k].plot(N, N / 50.0, "--k", label=r"$\tau = N/50$")
@@ -517,7 +524,7 @@ def make_convergence_plot(sampler_chain, ndim, burnin):
 
 
 
-def extract_best_fit_parameters(samples, variables, variables_order):
+def extract_best_fit_parameters(samples, variables, variables_order, verbose = False):
 
     best = list(map(lambda v: [v[0],v[1],v[2],v[3],v[4]],  \
                             zip(*np.percentile(samples, [2.5, 15.9, 50, 84.1, 97.5], axis=0))))
@@ -527,7 +534,8 @@ def extract_best_fit_parameters(samples, variables, variables_order):
         if variables[p]['vary']:
             variables[p]['best'] = best[i]
             i = i+1
-            print(p, variables[p]['best'])
+            if verbose == True:
+                print(p, variables[p]['best'])
 
 
     return np.array(best), variables
@@ -536,7 +544,10 @@ def extract_best_fit_parameters(samples, variables, variables_order):
 
 
 
-def make_corner_plot(samples, best, variables, variable_order, ndim):
+def make_corner_plot(samples, best, variables, variable_order, ndim, 
+                     title_fmt = '0.2f', title_quantiles = [0.159, 0.5, 0.841], 
+                     quantiles = [0.159, 0.5, 0.841], labelpad = 0.7,
+                     truth_color = 'tomato',verbose=False,figsize = (20,15)):
 
     variable_names = []
     for variable_name in variable_order:
@@ -549,10 +560,13 @@ def make_corner_plot(samples, best, variables, variable_order, ndim):
 
 
 
-    fig, axes = plt.subplots(ndim, ndim, figsize=(12.5,9))
+    fig, axes = plt.subplots(ndim, ndim, figsize=figsize)
     corner(samples, bins=40, labels=variable_names,
-                      max_n_ticks=3,plot_contours=True,quantiles=[0.025,0.975],fig=fig,
-                      show_titles=True,verbose=True,truths=best[:,2],range=np.ones(ndim)*1.0) # fix this
+                      max_n_ticks=3,plot_contours=True,quantiles=quantiles,
+                      title_quantiles = title_quantiles, fig=fig,
+                      show_titles=True,verbose=verbose,truths=best[:,2],range=np.ones(ndim)*1.0,
+                      title_fmt = title_fmt, labelpad = labelpad,
+                      truth_color = truth_color) # fix this
     fig.subplots_adjust(bottom=0.1,left=0.1,top=0.8)
 
     return
